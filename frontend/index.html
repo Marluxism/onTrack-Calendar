@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>onTrack Calendar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- FullCalendar CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <style>
+      body { font-family: system-ui, Arial; margin: 16px; }
+      #calendar { max-width: 1100px; margin: 20px auto; }
+      form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; }
+      input, button { padding:8px; }
+      label { display:flex; flex-direction:column; font-size:14px; }
+    </style>
+  </head>
+  <body>
+    <h1>onTrack</h1>
+
+    <form id="createForm">
+      <label>Title <input id="title" required></label>
+      <label>Start (ISO) <input id="start" placeholder="2025-09-20T10:00:00Z" required></label>
+      <label>End (ISO) <input id="end" placeholder="2025-09-20T11:00:00Z" required></label>
+      <label>All day <input id="allday" type="checkbox"></label>
+      <label>Color <input id="color" value="#3b82f6"></label>
+      <button type="submit">Add</button>
+    </form>
+
+    <div id="calendar"></div>
+
+    <script>
+      const API = "http://127.0.0.1:5000";
+
+      document.getElementById('createForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+          title: document.getElementById('title').value,
+          start_dt: document.getElementById('start').value,
+          end_dt: document.getElementById('end').value,
+          all_day: document.getElementById('allday').checked,
+          color: document.getElementById('color').value
+        };
+        const res = await fetch(`${API}/events`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(()=>({}));
+          alert('Create failed: ' + (err.error || res.status));
+          return;
+        }
+        calendar.refetchEvents();
+        e.target.reset();
+      });
+
+      const calendarEl = document.getElementById('calendar');
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: 'auto',
+        events: async (info, success, failure) => {
+          try {
+            const url = `${API}/events?start=${info.startStr}&end=${info.endStr}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            // adapt backend rows -> FullCalendar events
+            const events = data.map(r => ({
+              id: r.id,
+              title: r.title,
+              start: r.start_dt,
+              end: r.end_dt,
+              allDay: !!r.all_day,
+              color: r.color,
+              extendedProps: { description: r.description, location: r.location }
+            }));
+            success(events);
+          } catch (e) { failure(e); }
+        },
+        eventClick: (info) => {
+          const ev = info.event;
+          const msg = [
+            `Title: ${ev.title}`,
+            `Start: ${ev.start?.toISOString()}`,
+            `End: ${ev.end?.toISOString()}`,
+            `All-day: ${ev.allDay}`,
+            `Location: ${ev.extendedProps.location || ""}`,
+            `Description: ${ev.extendedProps.description || ""}`,
+            `ID: ${ev.id}`
+          ].join('\n');
+          if (confirm(msg + "\n\nDelete this event?")) {
+            fetch(`${API}/events/${ev.id}`, { method: 'DELETE' })
+              .then(() => calendar.refetchEvents())
+              .catch(err => alert('Delete failed'));
+          }
+        }
+      });
+      calendar.render();
+    </script>
+  </body>
+</html>
