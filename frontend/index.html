@@ -1,70 +1,237 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>onTrack Calendar</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- FullCalendar CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-    <style>
-      body { font-family: system-ui, Arial; margin: 16px; }
-      #calendar { max-width: 1100px; margin: 20px auto; }
-      form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; }
-      input, button { padding:8px; }
-      label { display:flex; flex-direction:column; font-size:14px; }
-    </style>
-  </head>
-  <body>
-    <h1>onTrack</h1>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>onTrack • Calendar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <form id="createForm">
-      <label>Title <input id="title" required></label>
-      <label>Start (ISO) <input id="start" placeholder="2025-09-20T10:00:00Z" required></label>
-      <label>End (ISO) <input id="end" placeholder="2025-09-20T11:00:00Z" required></label>
-      <label>All day <input id="allday" type="checkbox"></label>
-      <label>Color <input id="color" value="#3b82f6"></label>
-      <button type="submit">Add</button>
-    </form>
-
-    <div id="calendar"></div>
-
-    <script>
-      const API = "http://127.0.0.1:5000";
-
-      document.getElementById('createForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const payload = {
-          title: document.getElementById('title').value,
-          start_dt: document.getElementById('start').value,
-          end_dt: document.getElementById('end').value,
-          all_day: document.getElementById('allday').checked,
-          color: document.getElementById('color').value
-        };
-        const res = await fetch(`${API}/events`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(()=>({}));
-          alert('Create failed: ' + (err.error || res.status));
-          return;
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "system-ui", "Arial", "sans-serif"] },
+          colors: {
+            brand: {
+              50:  '#eef6ff',
+              100: '#d9eaff',
+              200: '#b3d3ff',
+              300: '#86b5ff',
+              400: '#5791ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a'
+            }
+          },
+          boxShadow: {
+            card: '0 10px 25px -10px rgb(0 0 0 / 0.25)'
+          }
         }
-        calendar.refetchEvents();
-        e.target.reset();
-      });
+      },
+      darkMode: 'class'
+    }
+  </script>
 
+  <!-- FullCalendar -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+  <style>
+    :root { --fc-border-color: rgba(17,24,39,.08); --fc-today-bg-color: rgba(59,130,246,.08); }
+    .dark :root { --fc-border-color: rgba(255,255,255,.12); --fc-today-bg-color: rgba(59,130,246,.14); }
+    .fc .fc-toolbar-title {font-weight:700}
+    .fc .fc-button-primary {background:#2563eb;border:0}
+    .fc .fc-button-primary:hover{background:#1d4ed8}
+    .fc .fc-daygrid-day.fc-day-today { background: var(--fc-today-bg-color); }
+    .fc-theme-standard td, .fc-theme-standard th { border-color: var(--fc-border-color); }
+  </style>
+</head>
+<body class="h-full bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100">
+  <!-- App Shell -->
+  <div class="min-h-screen">
+    <!-- Header -->
+    <header class="sticky top-0 z-30 border-b border-gray-200/60 dark:border-white/10 bg-white/80 dark:bg-gray-900/80 backdrop-blur">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-card grid place-items-center text-white font-black">on</div>
+          <div>
+            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight">onTrack</h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 -mt-0.5">Lightweight calendar • drag, drop, edit</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="todayBtn" class="hidden sm:inline-flex px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-100">Today</button>
+
+          <div class="hidden sm:flex items-center gap-1">
+            <button id="prevBtn" aria-label="Previous" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">◀</button>
+            <button id="nextBtn" aria-label="Next" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">▶</button>
+          </div>
+
+          <select id="viewSelect" class="hidden sm:block px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
+            <option value="dayGridMonth">Month</option>
+            <option value="timeGridWeek">Week</option>
+            <option value="timeGridDay">Day</option>
+            <option value="listWeek">Agenda</option>
+          </select>
+
+          <button id="newEventBtn" class="ml-1 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-medium shadow-card">+ New</button>
+
+          <button id="themeToggle" class="ml-2 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700" title="Toggle dark mode">🌙</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid lg:grid-cols-12 gap-6">
+      <!-- Left: Calendar -->
+      <section class="lg:col-span-8 xl:col-span-9">
+        <div class="rounded-2xl bg-white dark:bg-gray-950 shadow-card p-3 sm:p-6">
+          <div id="calendar"></div>
+        </div>
+      </section>
+
+      <!-- Right: Quick-create card -->
+      <aside class="lg:col-span-4 xl:col-span-3 space-y-6">
+        <div class="rounded-2xl bg-white dark:bg-gray-950 shadow-card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">Quick add</h2>
+            <span class="text-xs text-gray-500">ISO handled for you</span>
+          </div>
+          <form id="createForm" class="space-y-4">
+            <div>
+              <label class="text-sm font-medium">Title</label>
+              <input id="title" required class="mt-1 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Study group" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="text-sm font-medium">Start</label>
+                <input id="start" type="datetime-local" required class="mt-1 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+              <div>
+                <label class="text-sm font-medium">End</label>
+                <input id="end" type="datetime-local" required class="mt-1 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 items-end">
+              <label class="flex items-center gap-2">
+                <input id="allday" type="checkbox" class="rounded border-gray-300" />
+                <span class="text-sm">All day</span>
+              </label>
+              <div>
+                <label class="text-sm font-medium">Color</label>
+                <input id="color" type="color" value="#3b82f6" class="block mt-1 h-10 w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-gray-900" />
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium">Location (optional)</label>
+              <input id="location" class="mt-1 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="CSUF Library" />
+            </div>
+            <div>
+              <label class="text-sm font-medium">Description (optional)</label>
+              <textarea id="description" rows="3" class="mt-1 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Exam 2 review – bring notes"></textarea>
+            </div>
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-card">Add event</button>
+          </form>
+        </div>
+
+        <!-- Tips -->
+        <div class="rounded-2xl bg-gradient-to-br from-brand-50 to-white dark:from-gray-800 dark:to-gray-900 border border-brand-100/60 dark:border-white/10 p-5">
+          <h3 class="font-semibold mb-2">Pro tips</h3>
+          <ul class="text-sm list-disc pl-5 space-y-1 text-gray-600 dark:text-gray-300">
+            <li>Select on the calendar to create quickly.</li>
+            <li>Drag & drop or resize to update times.</li>
+            <li>Click an event to view / delete.</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="pointer-events-none fixed bottom-4 left-1/2 -translate-x-1/2 hidden"></div>
+
+  <!-- Modal (Event details) -->
+  <div id="eventModal" class="fixed inset-0 z-40 hidden">
+    <div class="absolute inset-0 bg-black/40" data-close></div>
+    <div class="relative z-10 max-w-md mx-auto mt-24 p-6 rounded-2xl bg-white dark:bg-gray-950 shadow-card border border-gray-200/60 dark:border-white/10">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h3 id="mTitle" class="text-xl font-bold"></h3>
+          <p id="mTime" class="text-sm text-gray-500 mt-1"></p>
+          <p id="mLoc" class="text-sm text-gray-500"></p>
+        </div>
+        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" data-close>✕</button>
+      </div>
+      <p id="mDesc" class="mt-4 text-sm"></p>
+      <div class="mt-6 flex items-center justify-end gap-2">
+        <button class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700" data-close>Close</button>
+        <button id="deleteBtn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Preferences & helpers ----------
+    const PREFS_KEY = 'ontrack:prefs';
+    const DEFAULT_API = 'http://127.0.0.1:5000';
+
+    const prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+    const API = prefs.api || DEFAULT_API;
+
+    const $ = (sel) => document.querySelector(sel);
+
+    function showToast(msg, type='ok'){
+      const el = $('#toast');
+      el.innerHTML = `<div class="pointer-events-auto px-4 py-2 rounded-xl shadow-card border ${type==='ok'?'bg-white border-green-200 text-green-700':'bg-white border-red-200 text-red-700'}">${msg}</div>`;
+      el.classList.remove('hidden');
+      setTimeout(()=> el.classList.add('hidden'), 2200);
+    }
+
+    function toISOZFromLocalInput(value){
+      // value like "2025-09-30T13:30" in local time -> ISO Z
+      const dt = new Date(value);
+      return dt.toISOString().replace(/\.\d{3}Z$/, 'Z');
+    }
+
+    function fmt(dt){
+      return new Date(dt).toLocaleString([], { dateStyle:'medium', timeStyle:'short' });
+    }
+
+    // ---------- Safer fetch ----------
+    async function jsonFetch(url, options){
+      const res = await fetch(url, options);
+      if(!res.ok){
+        let err = 'Request failed';
+        try { const j = await res.json(); err = j.error || err; } catch {}
+        throw new Error(err);
+      }
+      try { return await res.json(); } catch { return {}; }
+    }
+
+    // ---------- Calendar ----------
+    let calendar, lastClickedEvent = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
       const calendarEl = document.getElementById('calendar');
-      const calendar = new FullCalendar.Calendar(calendarEl, {
+      calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         height: 'auto',
+        nowIndicator: true,
+        selectable: true,
+        headerToolbar: false,
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
+        views: { listWeek: { noEventsContent: 'No events this week' } },
+
         events: async (info, success, failure) => {
           try {
             const url = `${API}/events?start=${info.startStr}&end=${info.endStr}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            // adapt backend rows -> FullCalendar events
+            const data = await jsonFetch(url);
             const events = data.map(r => ({
               id: r.id,
               title: r.title,
@@ -77,25 +244,113 @@
             success(events);
           } catch (e) { failure(e); }
         },
-        eventClick: (info) => {
-          const ev = info.event;
-          const msg = [
-            `Title: ${ev.title}`,
-            `Start: ${ev.start?.toISOString()}`,
-            `End: ${ev.end?.toISOString()}`,
-            `All-day: ${ev.allDay}`,
-            `Location: ${ev.extendedProps.location || ""}`,
-            `Description: ${ev.extendedProps.description || ""}`,
-            `ID: ${ev.id}`
-          ].join('\n');
-          if (confirm(msg + "\n\nDelete this event?")) {
-            fetch(`${API}/events/${ev.id}`, { method: 'DELETE' })
-              .then(() => calendar.refetchEvents())
-              .catch(err => alert('Delete failed'));
-          }
+
+        select: async (sel) => {
+          const title = prompt('Event title?');
+          if(!title) return;
+          try{
+            await jsonFetch(`${API}/events`, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ title, start_dt: sel.startStr, end_dt: sel.endStr, all_day: sel.allDay })
+            });
+            calendar.refetchEvents();
+            showToast('Event created');
+          }catch(err){ showToast('Create failed: ' + err.message, 'err'); }
+        },
+
+        eventClick: (info)=> {
+          lastClickedEvent = info.event;
+          $('#mTitle').textContent = info.event.title;
+          $('#mTime').textContent  = `${fmt(info.event.start)} – ${fmt(info.event.end)}`;
+          $('#mLoc').textContent   = info.event.extendedProps.location || '';
+          $('#mDesc').textContent  = info.event.extendedProps.description || '';
+          $('#eventModal').classList.remove('hidden');
+        },
+
+        editable: true,
+        eventDrop: async (info) => {
+          try{
+            await jsonFetch(`${API}/events/${info.event.id}`, {
+              method:'PUT', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({
+                start_dt: info.event.start?.toISOString(),
+                end_dt: info.event.end?.toISOString(),
+                all_day: info.event.allDay
+              })
+            });
+            calendar.refetchEvents();
+            showToast('Event updated');
+          }catch(err){ info.revert(); showToast('Update failed: ' + err.message, 'err'); }
+        },
+        eventResize: async (info) => {
+          try{
+            await jsonFetch(`${API}/events/${info.event.id}`, {
+              method:'PUT', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ end_dt: info.event.end?.toISOString() })
+            });
+            calendar.refetchEvents();
+            showToast('Event resized');
+          }catch(err){ info.revert(); showToast('Update failed: ' + err.message, 'err'); }
         }
       });
       calendar.render();
-    </script>
-  </body>
+
+      // Header controls
+      $('#todayBtn').addEventListener('click', ()=> calendar.today());
+      $('#prevBtn').addEventListener('click', ()=> calendar.prev());
+      $('#nextBtn').addEventListener('click', ()=> calendar.next());
+      $('#viewSelect').addEventListener('change', (e)=> calendar.changeView(e.target.value));
+
+      // Theme toggle
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if(prefs.theme === 'dark' || (!prefs.theme && prefersDark)) document.documentElement.classList.add('dark');
+      $('#themeToggle').addEventListener('click', ()=>{
+        document.documentElement.classList.toggle('dark');
+        prefs.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+      });
+
+      // Modal wiring
+      $('#eventModal').addEventListener('click', (e)=>{ if(e.target.dataset.close !== undefined || e.target.closest('[data-close]')) closeModal(); });
+      $('#deleteBtn').addEventListener('click', onDelete);
+
+      // Quick add form
+      $('#createForm').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const payload = {
+          title: $('#title').value.trim(),
+          start_dt: toISOZFromLocalInput($('#start').value),
+          end_dt: toISOZFromLocalInput($('#end').value),
+          all_day: $('#allday').checked,
+          color: $('#color').value,
+          location: $('#location').value.trim() || null,
+          description: $('#description').value.trim() || null
+        };
+        if(!payload.title){ showToast('Title required', 'err'); return; }
+        try{
+          await jsonFetch(`${API}/events`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+          e.target.reset();
+          calendar.refetchEvents();
+          showToast('Event added');
+        }catch(err){ showToast('Create failed: ' + err.message, 'err'); }
+      });
+    });
+
+    function closeModal(){
+      $('#eventModal').classList.add('hidden');
+      lastClickedEvent = null;
+    }
+
+    async function onDelete(){
+      if(!lastClickedEvent) return closeModal();
+      if(!confirm('Delete this event?')) return;
+      try{
+        await jsonFetch(`${API}/events/${lastClickedEvent.id}`, { method:'DELETE' });
+        calendar.refetchEvents();
+        closeModal();
+        showToast('Event deleted');
+      }catch(err){ showToast('Delete failed: ' + err.message, 'err'); }
+    }
+  </script>
+</body>
 </html>
