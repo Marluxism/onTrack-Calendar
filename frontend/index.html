@@ -352,5 +352,66 @@
       }catch(err){ showToast('Delete failed: ' + err.message, 'err'); }
     }
   </script>
+
+<!-- Keyboard Shortcuts Help Panel (and floating "?") -->
+<style>
+  #shortcut-help[aria-hidden="true"] { display: none; }
+  #shortcut-help { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.45); z-index: 9999; }
+  #shortcut-help .card {
+    background: #fff; max-width: 560px; width: 92%;
+    border-radius: 14px; padding: 18px 20px; box-shadow: 0 10px 30px rgba(0,0,0,.15);
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  #shortcut-help h2 { margin: 0 0 6px; font-size: 1.25rem; }
+  #shortcut-help p  { margin: 0 0 10px; color: #555; }
+  #shortcut-help kbd{
+    border:1px solid #ccc; border-bottom-width:2px; padding:2px 6px; border-radius:6px; background:#f7f7f7;
+  }
+  #shortcut-help table { width:100%; border-collapse:collapse; }
+  #shortcut-help td { padding:6px 0; vertical-align:top; }
+  #shortcut-help td:first-child { width:52%; font-weight:600; }
+  #shortcut-help .row { display:flex; gap:8px; margin-top:12px; justify-content:flex-end; }
+  #shortcut-help button { border:1px solid #ddd; background:#fafafa; border-radius:8px; padding:8px 12px; cursor:pointer; }
+  #shortcut-help button:hover { background:#f0f0f0; }
+
+  /* Floating "?" button */
+  #kb-help-btn {
+    position: fixed; right: 18px; bottom: 18px; z-index: 10000;
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.85); backdrop-filter: blur(6px);
+    display: grid; place-items: center; font-weight: 700; cursor: pointer;
+    box-shadow: 0 8px 22px rgba(0,0,0,.15);
+  }
+  #kb-help-btn:hover { background: #fff; }
+</style>
+
+<!-- Floating "?" button -->
+<button id="kb-help-btn" type="button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts" onclick="toggleHelp()">?</button>
+
+<!-- The help panel -->
+<div id="shortcut-help" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="shortcut-help-title">
+  <div class="card">
+    <h2 id="shortcut-help-title">Keyboard Shortcuts</h2>
+    <p>Press <kbd>?</kbd> to toggle this panel. Press <kbd>Esc</kbd> to close.</p>
+    <table aria-label="Shortcut List">
+      <tr><td>Create new event</td><td><kbd>Shift</kbd> + <kbd>A</kbd></td></tr>
+<tr><td>Delete selected event</td>
+    <td><kbd>Delete</kbd> or <kbd>Shift</kbd> + <kbd>Backspace</kbd></td></tr>
+<tr><td>Instant delete (no modal)</td><td><kbd>Shift</kbd> + <kbd>D</kbd></td></tr>
+      <tr><td>Focus event title</td><td><kbd>Shift</kbd> + <kbd>E</kbd></td></tr>
+      <tr><td>Show/Hide this help</td><td><kbd>?</kbd></td></tr>
+    </table>
+    <div class="row">
+      <button type="button" onclick="closeHelp()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Load the shortcuts logic -->
+<script defer src="./js/shortcuts.js"></script>
+
+
+
 </body>
 </html>
