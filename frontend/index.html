@@ -43,13 +43,31 @@
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
   <style>
-    :root { --fc-border-color: rgba(17,24,39,.08); --fc-today-bg-color: rgba(59,130,246,.08); }
-    .dark :root { --fc-border-color: rgba(255,255,255,.12); --fc-today-bg-color: rgba(59,130,246,.14); }
+    :root {
+      --fc-border-color: rgba(17,24,39,.08);
+      --fc-today-bg-color: rgba(59,130,246,.08);
+    }
+    html.dark {
+      --fc-border-color: rgba(255,255,255,.12);
+      --fc-today-bg-color: rgba(59,130,246,.14);
+    }
     .fc .fc-toolbar-title {font-weight:700}
     .fc .fc-button-primary {background:#2563eb;border:0}
     .fc .fc-button-primary:hover{background:#1d4ed8}
     .fc .fc-daygrid-day.fc-day-today { background: var(--fc-today-bg-color); }
     .fc-theme-standard td, .fc-theme-standard th { border-color: var(--fc-border-color); }
+
+    /* Weekday header colors (light + dark) */
+    .fc-col-header-cell-cushion {
+      color:#1f2937; /* gray-800 */
+      font-weight:600;
+    }
+    html.dark .fc-col-header-cell {
+      background-color:#111827 !important; /* gray-900 */
+    }
+    html.dark .fc-col-header-cell-cushion {
+      color:#e5e7eb !important; /* gray-200 */
+    }
   </style>
 </head>
 <body class="h-full bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100">
@@ -224,7 +242,11 @@
         height: 'auto',
         nowIndicator: true,
         selectable: true,
-        headerToolbar: false,
+        headerToolbar: {
+          left: '',
+          center: 'title',
+          right: ''
+        },
         eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
         views: { listWeek: { noEventsContent: 'No events this week' } },
 
@@ -248,11 +270,32 @@
         select: async (sel) => {
           const title = prompt('Event title?');
           if(!title) return;
+
+          // Normalize selection so all-day events don't shift to previous day
+          let startISO = sel.startStr;
+          let endISO   = sel.endStr;
+          let allDay   = sel.allDay;
+
+          if (sel.allDay) {
+            const sDate = new Date(sel.startStr + 'T00:00:00');
+            const eDate = new Date(sel.endStr + 'T23:59:59');
+            startISO = sDate.toISOString().replace(/\.\d{3}Z$/, 'Z');
+            endISO   = eDate.toISOString().replace(/\.\d{3}Z$/, 'Z');
+            allDay   = true;
+          }
+
           try{
             await jsonFetch(`${API}/events`, {
-              method:'POST', headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({ title, start_dt: sel.startStr, end_dt: sel.endStr, all_day: sel.allDay })
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({
+                title,
+                start_dt: startISO,
+                end_dt: endISO,
+                all_day: allDay
+              })
             });
+            calendar.unselect();
             calendar.refetchEvents();
             showToast('Event created');
           }catch(err){ showToast('Create failed: ' + err.message, 'err'); }
@@ -410,8 +453,6 @@
 
 <!-- Load the shortcuts logic -->
 <script defer src="./js/shortcuts.js"></script>
-
-
 
 </body>
 </html>
